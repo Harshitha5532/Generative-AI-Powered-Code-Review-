@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI Code Review & Rewrite Agent</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    
+    <!-- Marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .code-container {
+            position: relative;
+        }
+        
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .code-container:hover .copy-btn {
+            opacity: 1;
+        }
+        
+        .severity-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .severity-critical {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .severity-high {
+            background-color: #fed7aa;
+            color: #9a3412;
+        }
+        
+        .severity-medium {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        
+        .severity-low {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        pre code {
+            border-radius: 8px;
+            padding: 16px;
+            display: block;
+            overflow-x: auto;
+        }
+        
+        .tab-button {
+            padding: 12px 24px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab-button.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-robot text-4xl"></i>
+                    <div>
+                        <h1 class="text-3xl font-bold">AI Code Review & Rewrite Agent</h1>
+                        <p class="text-purple-200 text-sm">Powered by Groq & Llama 3.3 70B</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-right">
+                        <p class="text-sm opacity-90">Ultra-Fast Analysis</p>
+                        <p class="text-xs opacity-75">Real-time AI Processing</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Tabs -->
+        <div class="bg-white rounded-lg shadow-md mb-6">
+            <div class="flex border-b">
+                <button id="reviewTab" class="tab-button active flex items-center space-x-2">
+                    <i class="fas fa-search"></i>
+                    <span>Code Review</span>
+                </button>
+                <button id="rewriteTab" class="tab-button flex items-center space-x-2">
+                    <i class="fas fa-code"></i>
+                    <span>Code Rewrite</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Review Section -->
+        <div id="reviewSection" class="space-y-6">
+            <!-- Input Card -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-code-branch mr-3 text-purple-600"></i>
+                    Submit Code for Review
+                </h2>
+                
+                <div class="space-y-4">
+                    <!-- Language Selection -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Programming Language
+                        </label>
+                        <select id="reviewLanguage" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent">
+                            <option value="python">Python</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="java">Java</option>
+                            <option value="cpp">C++</option>
+                            <option value="csharp">C#</option>
+                            <option value="go">Go</option>
+                            <option value="rust">Rust</option>
+                            <option value="php">PHP</option>
+                            <option value="ruby">Ruby</option>
+                            <option value="typescript">TypeScript</option>
+                        </select>
+                    </div>
+
+                    <!-- Focus Areas -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Focus Areas (Select all that apply)
+                        </label>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="bugs" class="review-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Bugs</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="security" class="review-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Security</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="performance" class="review-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Performance</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="best practices" class="review-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Best Practices</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="code quality" class="review-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Code Quality</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="maintainability" class="review-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Maintainability</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="documentation" class="review-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Documentation</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="testing" class="review-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Testing</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Code Input -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Your Code
+                        </label>
+                        <textarea id="reviewCode" rows="12" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent font-mono text-sm"
+                            placeholder="Paste your code here..."></textarea>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button id="reviewBtn" 
+                        class="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-purple-700 hover:to-purple-800 transition duration-300 flex items-center justify-center space-x-2">
+                        <i class="fas fa-search"></i>
+                        <span>Analyze Code</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Card -->
+            <div id="reviewResults" class="hidden">
+                <!-- Summary Section -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6 fade-in">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-chart-pie mr-3 text-purple-600"></i>
+                        Review Summary
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div class="text-center p-4 bg-red-50 rounded-lg">
+                            <div class="text-3xl font-bold text-red-600" id="criticalCount">0</div>
+                            <div class="text-sm text-gray-600">Critical</div>
+                        </div>
+                        <div class="text-center p-4 bg-orange-50 rounded-lg">
+                            <div class="text-3xl font-bold text-orange-600" id="highCount">0</div>
+                            <div class="text-sm text-gray-600">High</div>
+                        </div>
+                        <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                            <div class="text-3xl font-bold text-yellow-600" id="mediumCount">0</div>
+                            <div class="text-sm text-gray-600">Medium</div>
+                        </div>
+                        <div class="text-center p-4 bg-blue-50 rounded-lg">
+                            <div class="text-3xl font-bold text-blue-600" id="lowCount">0</div>
+                            <div class="text-sm text-gray-600">Low</div>
+                        </div>
+                    </div>
+                    <div class="prose max-w-none">
+                        <div id="reviewSummary" class="text-gray-700"></div>
+                    </div>
+                </div>
+
+                <!-- Issues Section -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6 fade-in">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-exclamation-triangle mr-3 text-purple-600"></i>
+                        Detected Issues
+                    </h3>
+                    <div id="issuesList" class="space-y-3"></div>
+                </div>
+
+                <!-- Suggestions Section -->
+                <div class="bg-white rounded-lg shadow-md p-6 fade-in">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-lightbulb mr-3 text-purple-600"></i>
+                        Overall Suggestions
+                    </h3>
+                    <div id="reviewSuggestions" class="prose max-w-none"></div>
+                </div>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="reviewLoading" class="hidden">
+                <div class="bg-white rounded-lg shadow-md p-12 text-center">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p class="text-gray-600 font-semibold">Analyzing your code...</p>
+                    <p class="text-gray-500 text-sm mt-2">This may take a few seconds</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rewrite Section -->
+        <div id="rewriteSection" class="hidden space-y-6">
+            <!-- Input Card -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                    <i class="fas fa-magic mr-3 text-purple-600"></i>
+                    Submit Code for Rewriting
+                </h2>
+                
+                <div class="space-y-4">
+                    <!-- Language Selection -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Programming Language
+                        </label>
+                        <select id="rewriteLanguage" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent">
+                            <option value="python">Python</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="java">Java</option>
+                            <option value="cpp">C++</option>
+                            <option value="csharp">C#</option>
+                            <option value="go">Go</option>
+                            <option value="rust">Rust</option>
+                            <option value="php">PHP</option>
+                            <option value="ruby">Ruby</option>
+                            <option value="typescript">TypeScript</option>
+                        </select>
+                    </div>
+
+                    <!-- Focus Areas -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Optimization Focus
+                        </label>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="performance" class="rewrite-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Performance</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="readability" class="rewrite-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Readability</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="best practices" class="rewrite-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Best Practices</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="security" class="rewrite-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Security</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="maintainability" class="rewrite-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Maintainability</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="documentation" class="rewrite-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Documentation</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="modularity" class="rewrite-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Modularity</span>
+                            </label>
+                            <label class="flex items-center space-x-2 cursor-pointer">
+                                <input type="checkbox" value="error handling" class="rewrite-focus w-4 h-4 text-purple-600 rounded">
+                                <span class="text-sm">Error Handling</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Code Input -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">
+                            Your Code
+                        </label>
+                        <textarea id="rewriteCode" rows="12" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent font-mono text-sm"
+                            placeholder="Paste your code here..."></textarea>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button id="rewriteBtn" 
+                        class="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-purple-700 hover:to-purple-800 transition duration-300 flex items-center justify-center space-x-2">
+                        <i class="fas fa-magic"></i>
+                        <span>Rewrite & Optimize Code</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results Card -->
+            <div id="rewriteResults" class="hidden">
+                <!-- Comparison Section -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6 fade-in">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-code mr-3 text-purple-600"></i>
+                        Code Comparison
+                    </h3>
+                    
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <!-- Original Code -->
+                        <div>
+                            <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fas fa-file-code mr-2 text-gray-500"></i>
+                                Original Code
+                            </h4>
+                            <div class="code-container">
+                                <pre><code id="originalCode" class="language-python"></code></pre>
+                            </div>
+                        </div>
+                        
+                        <!-- Rewritten Code -->
+                        <div>
+                            <h4 class="font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fas fa-sparkles mr-2 text-purple-600"></i>
+                                Optimized Code
+                            </h4>
+                            <div class="code-container">
+                                <button class="copy-btn bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700" onclick="copyRewrittenCode()">
+                                    <i class="fas fa-copy mr-1"></i> Copy
+                                </button>
+                                <pre><code id="rewrittenCode" class="language-python"></code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Improvements Section -->
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6 fade-in">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-list-check mr-3 text-purple-600"></i>
+                        Key Improvements
+                    </h3>
+                    <div id="improvementsList" class="prose max-w-none"></div>
+                </div>
+
+                <!-- Summary Section -->
+                <div class="bg-white rounded-lg shadow-md p-6 fade-in">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-info-circle mr-3 text-purple-600"></i>
+                        Summary
+                    </h3>
+                    <div id="rewriteSummary" class="prose max-w-none"></div>
+                </div>
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="rewriteLoading" class="hidden">
+                <div class="bg-white rounded-lg shadow-md p-12 text-center">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p class="text-gray-600 font-semibold">Rewriting and optimizing your code...</p>
+                    <p class="text-gray-500 text-sm mt-2">This may take a few seconds</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-sm">Powered by Groq's Ultra-Fast LLM Inference & Llama 3.3 70B</p>
+            <p class="text-xs text-gray-400 mt-2">AI Code Review & Rewrite Agent © 2025</p>
+        </div>
+    </footer>
+
+    <script>
+        // Tab switching
+        const reviewTab = document.getElementById('reviewTab');
+        const rewriteTab = document.getElementById('rewriteTab');
+        const reviewSection = document.getElementById('reviewSection');
+        const rewriteSection = document.getElementById('rewriteSection');
+
+        reviewTab.addEventListener('click', () => {
+            reviewTab.classList.add('active');
+            rewriteTab.classList.remove('active');
+            reviewSection.classList.remove('hidden');
+            rewriteSection.classList.add('hidden');
+        });
+
+        rewriteTab.addEventListener('click', () => {
+            rewriteTab.classList.add('active');
+            reviewTab.classList.remove('active');
+            rewriteSection.classList.remove('hidden');
+            reviewSection.classList.add('hidden');
+        });
+
+        // Code Review Function
+        document.getElementById('reviewBtn').addEventListener('click', async () => {
+            const code = document.getElementById('reviewCode').value.trim();
+            const language = document.getElementById('reviewLanguage').value;
+            const focusAreas = Array.from(document.querySelectorAll('.review-focus:checked')).map(cb => cb.value);
+
+            if (!code) {
+                alert('Please enter some code to review');
+                return;
+            }
+
+            // Show loading, hide results
+            document.getElementById('reviewLoading').classList.remove('hidden');
+            document.getElementById('reviewResults').classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/review', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        code: code,
+                        language: language,
+                        focus_areas: focusAreas
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Review failed');
+                }
+
+                const data = await response.json();
+
+                // Update counts
+                document.getElementById('criticalCount').textContent = data.issue_counts.critical || 0;
+                document.getElementById('highCount').textContent = data.issue_counts.high || 0;
+                document.getElementById('mediumCount').textContent = data.issue_counts.medium || 0;
+                document.getElementById('lowCount').textContent = data.issue_counts.low || 0;
+
+                // Update summary
+                document.getElementById('reviewSummary').innerHTML = marked.parse(data.summary);
+
+                // Update issues list
+                const issuesList = document.getElementById('issuesList');
+                issuesList.innerHTML = '';
+                
+                if (data.issues && data.issues.length > 0) {
+                    data.issues.forEach(issue => {
+                        const issueCard = document.createElement('div');
+                        issueCard.className = 'border-l-4 border-purple-600 bg-gray-50 p-4 rounded';
+                        issueCard.innerHTML = `
+                            <div class="flex items-start justify-between mb-2">
+                                <div class="flex items-center space-x-2">
+                                    <span class="severity-badge severity-${issue.severity.toLowerCase()}">${issue.severity}</span>
+                                    <span class="text-sm text-gray-600">${issue.category}</span>
+                                    ${issue.line ? `<span class="text-sm text-gray-500">Line ${issue.line}</span>` : ''}
+                                </div>
+                            </div>
+                            <p class="text-gray-700 mb-2">${issue.description}</p>
+                            <p class="text-sm text-purple-600"><i class="fas fa-lightbulb mr-1"></i> ${issue.suggestion}</p>
+                        `;
+                        issuesList.appendChild(issueCard);
+                    });
+                } else {
+                    issuesList.innerHTML = '<p class="text-gray-600 text-center py-4">No specific issues detected. Great job!</p>';
+                }
+
+                // Update suggestions
+                document.getElementById('reviewSuggestions').innerHTML = marked.parse(data.suggestions);
+
+                // Show results
+                document.getElementById('reviewLoading').classList.add('hidden');
+                document.getElementById('reviewResults').classList.remove('hidden');
+
+                // Scroll to results
+                document.getElementById('reviewResults').scrollIntoView({ behavior: 'smooth' });
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred during code review. Please check your API key and try again.');
+                document.getElementById('reviewLoading').classList.add('hidden');
+            }
+        });
+
+        // Code Rewrite Function
+        document.getElementById('rewriteBtn').addEventListener('click', async () => {
+            const code = document.getElementById('rewriteCode').value.trim();
+            const language = document.getElementById('rewriteLanguage').value;
+            const focusAreas = Array.from(document.querySelectorAll('.rewrite-focus:checked')).map(cb => cb.value);
+
+            if (!code) {
+                alert('Please enter some code to rewrite');
+                return;
+            }
+
+            // Show loading, hide results
+            document.getElementById('rewriteLoading').classList.remove('hidden');
+            document.getElementById('rewriteResults').classList.add('hidden');
+
+            try {
+                const response = await fetch('/api/rewrite', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        code: code,
+                        language: language,
+                        focus_areas: focusAreas
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Rewrite failed');
+                }
+
+                const data = await response.json();
+
+                // Display original code
+                const originalCodeEl = document.getElementById('originalCode');
+                originalCodeEl.textContent = code;
+                originalCodeEl.className = `language-${language}`;
+
+                // Display rewritten code
+                const rewrittenCodeEl = document.getElementById('rewrittenCode');
+                rewrittenCodeEl.textContent = data.rewritten_code;
+                rewrittenCodeEl.className = `language-${language}`;
+
+                // Apply syntax highlighting
+                hljs.highlightAll();
+
+                // Display improvements
+                document.getElementById('improvementsList').innerHTML = marked.parse(data.improvements);
+
+                // Display summary
+                document.getElementById('rewriteSummary').innerHTML = marked.parse(data.summary);
+
+                // Show results
+                document.getElementById('rewriteLoading').classList.add('hidden');
+                document.getElementById('rewriteResults').classList.remove('hidden');
+
+                // Scroll to results
+                document.getElementById('rewriteResults').scrollIntoView({ behavior: 'smooth' });
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred during code rewriting. Please check your API key and try again.');
+                document.getElementById('rewriteLoading').classList.add('hidden');
+            }
+        });
+
+        // Copy rewritten code function
+        function copyRewrittenCode() {
+            const code = document.getElementById('rewrittenCode').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('Code copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+    </script>
+</body>
+</html>
